@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10131d">
+<title>シャドバ読心術</title>
+<style>
+:root{color-scheme:dark;--bg:#10131d;--panel:#1a2030;--panel2:#222b3e;--line:#354158;--gold:#e6bd69;--text:#f5f1e8;--muted:#aab4c7;--blue:#7eb8ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#26334b 0,#10131d 55%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+main{width:min(760px,100%);margin:auto;padding:24px 16px 56px}.brand{text-align:center;margin:10px 0 22px}.brand small{color:var(--gold);letter-spacing:.22em;font-weight:700}.brand h1{font-size:clamp(28px,7vw,42px);margin:8px 0 5px;letter-spacing:.06em}.brand p{color:var(--muted);margin:0;font-size:14px}
+.panel{background:linear-gradient(145deg,rgba(34,43,62,.97),rgba(24,30,45,.98));border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 18px 50px #0005}
+.hidden{display:none!important}.intro{text-align:center}.sigil{font-size:52px;margin:6px 0 12px}.intro h2{font-size:22px;margin:8px 0}.intro p{color:var(--muted);line-height:1.8}.primary,.answer,.subtle{border:0;border-radius:13px;padding:15px 18px;font-size:16px;font-weight:750;cursor:pointer;transition:.15s}.primary{background:linear-gradient(135deg,#f2d38d,#c9943d);color:#211a10;width:100%;margin-top:12px}.primary:active,.answer:active{transform:scale(.98)}.meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px;margin-bottom:14px}.progress{height:6px;background:#111827;border-radius:9px;overflow:hidden;margin-bottom:22px}.progress span{display:block;height:100%;background:linear-gradient(90deg,#c58c38,#f3d78f);width:0;transition:width .2s}
+.tag{display:inline-block;border:1px solid #8c7446;color:#f0d28c;border-radius:99px;padding:5px 10px;font-size:12px;margin-bottom:14px}.question{text-align:center;font-size:clamp(21px,5vw,28px);line-height:1.5;margin:4px 0 24px}.answers{display:grid;grid-template-columns:1fr 1fr;gap:10px}.answer{background:#e9edf5;color:#182033}.answer.no{background:#39445a;color:#fff}.answer.unknown{grid-column:1/-1;background:#252f43;color:#d8e0ee;border:1px solid #526078;font-size:14px;padding:12px}.foot{display:flex;justify-content:space-between;gap:10px;margin-top:16px}.subtle{background:transparent;color:var(--muted);border:1px solid var(--line);font-size:13px;padding:10px 13px}.count{text-align:center;color:var(--muted);font-size:13px;margin-top:18px}.count strong{color:var(--gold);font-size:18px}.result{text-align:center}.result h2{font-size:24px}.cardimg{width:min(320px,85%);max-height:460px;object-fit:contain;border-radius:12px;filter:drop-shadow(0 12px 18px #0008);margin:8px auto}.cardname{font-size:23px;font-weight:800;margin:10px 0}.details{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:12px 0}.details span{background:#111827;border:1px solid var(--line);border-radius:99px;padding:6px 10px;color:#dce4f2;font-size:12px}.result p{color:var(--muted);line-height:1.7}.candidate-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:18px}.candidate{background:#111827;border:1px solid var(--line);border-radius:12px;padding:9px;text-align:center}.candidate img{width:100%;height:150px;object-fit:contain}.candidate b{display:block;font-size:12px;margin-top:5px}.error{background:#4b2528;border:1px solid #9c5358;color:#ffd9d9;padding:12px;border-radius:12px;line-height:1.6;margin-top:12px}.loading{color:var(--muted);text-align:center;padding:24px}
+@media(max-width:420px){main{padding:18px 12px 40px}.panel{padding:18px}.answers{gap:8px}.answer{padding:14px 8px}.foot{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand"><small>SHADOWVERSE: WORLDS BEYOND</small><h1>シャドバ読心術</h1><p>思い浮かべたカードを、質問だけで見抜く。</p></header>
+  <section id="loading" class="panel loading">
+    <h2>日本語カードデータを読み込む</h2>
+    <p>カードデータを自動で読み込んでいます。初回表示まで少し時間がかかる場合があります。</p>
+    <input id="jsonFile" type="file" accept=".json,application/json" onchange="loadLocalJson(event)" style="display:block;width:100%;margin:18px 0;color:var(--text)">
+    <div class="error">自動読み込みに失敗した場合は、上のボタンから <b>cards_ja.json</b> を選択してください。</div>
+  </section>
+  <section id="loadError" class="panel hidden">
+    <h2>カードデータを読み込めませんでした</h2>
+    <p>インターネット接続を確認して、もう一度読み込んでください。</p>
+    <button class="primary" onclick="show('loading')">JSONファイルを選び直す</button>
+    <div class="error">カードデータは外部の公開データベースから取得します。通信環境や配信元の状態によって読み込めない場合があります。</div>
+  </section>
+  <section id="start" class="panel intro hidden">
+    <div class="sigil">✦</div><span class="tag">CARD DEDUCTION</span>
+    <h2>カードを1枚思い浮かべてください</h2>
+    <p>シャドバWBに登場するカードを1枚選んで、頭の中に思い浮かべてください。<br>通常カードだけでなく、トークンカードも対象です。</p>
+    <p id="dbCount"></p>
+    <button class="primary" onclick="startGame()">ゲームスタート</button>
+  </section>
+  <section id="game" class="panel hidden">
+    <div class="meta"><span id="qNumber">質問 1</span><span id="remain">候補 －枚</span></div>
+    <div class="progress"><span id="bar"></span></div>
+    <div style="text-align:center"><span class="tag" id="qCategory">基本情報</span></div>
+    <h2 class="question" id="question">このカードは…？</h2>
+    <div class="answers">
+      <button class="answer" onclick="answer('yes')">はい</button>
+      <button class="answer no" onclick="answer('no')">いいえ</button>
+      <button class="answer unknown" onclick="answer('unknown')">わからない / 判断できない</button>
+    </div>
+    <div class="count">現在の候補カード数は <strong id="candidateCount">－</strong> 枚</div>
+    <details id="liveCandidates" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+      <summary style="cursor:pointer;color:var(--gold);font-weight:700">候補カードを表示</summary>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6">質問に回答するたびに候補が更新されます。カード名や画像を確認できます。</p>
+      <input id="gameCandidateSearch" type="search" placeholder="候補カードを検索" oninput="renderCandidateList('gameCandidateList','gameCandidateSearch')" style="width:100%;padding:12px;margin:8px 0;background:#111827;color:var(--text);border:1px solid var(--line);border-radius:8px">
+      <div id="gameCandidateList" class="candidate-list"></div>
+    </details>
+    <div class="foot"><button class="subtle" onclick="undo()">← 1つ戻る</button><button class="subtle" onclick="restart()">最初から</button></div>
+  </section>
+  <section id="result" class="panel result hidden">
+    <span class="tag">MY GUESS</span><h2 id="resultTitle">あなたのカードは…</h2>
+    <img id="resultImage" class="cardimg" alt="カード画像">
+    <div class="cardname" id="resultName"></div>
+    <p><a id="detailLink" href="#" target="_blank" rel="noopener" style="color:var(--blue)">公式カード詳細を開く</a></p>
+    <div class="details" id="resultDetails"></div>
+    <p id="resultText"></p>
+    <div id="finalConfirm" class="answers hidden" style="margin-top:18px">
+      <button class="answer" onclick="confirmFinal(true)">はい</button>
+      <button class="answer no" onclick="confirmFinal(false)">いいえ</button>
+    </div>
+    <button id="resultUndo" class="subtle" style="margin-top:14px" onclick="undo()">← 回答を修正する</button>
+    <button class="subtle" style="margin-top:14px" onclick="restart()">もう一度遊ぶ</button>
+  </section>
+  <footer style="text-align:center;color:#7f8ba1;font-size:11px;line-height:1.7;margin:18px 10px">非公式ファン制作ツールです。ゲーム運営会社とは関係ありません。<br>カード画像・名称等の権利は各権利者に帰属します。</footer>
+</main>
+<script>
+const CLASS_JA={"ニュートラル":"ニュートラル","エルフ":"エルフ","ロイヤル":"ロイヤル","ウィッチ":"ウィッチ","ドラゴン":"ドラゴン","ナイトメア":"ナイトメア","ビショップ":"ビショップ","ネメシス":"ネメシス"};
+const TYPE_JA={Follower:"フォロワー",Spell:"スペル",Amulet:"アミュレット"};
+const RARITY_JA={Bronze:"ブロンズ",Silver:"シルバー",Gold:"ゴールド",Legendary:"レジェンド"};
+let cards=[],candidates=[],history=[],asked=new Set(),currentQuestion=null,guessMode=false,guessIndex=0,initialBousouActive=false;
+const $=id=>document.getElementById(id);
+function show(id){['loading','loadError','start','game','result'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function loadJsonText(jsonText){
+ try{
+   const parsed=JSON.parse(jsonText);
+   const list=Array.isArray(parsed)?parsed:parsed.cards;
+   if(!Array.isArray(list)||!list.length)throw new Error('cards配列が見つかりません');
+   cards=list.filter(c=>c&&c.name).map(c=>({...c,keywords:Array.isArray(c.keywords)?c.keywords:[],text:c.text||'',evolved:c.evolved||{text:''},evolution:c.evolution||{}}));
+   const tokens=cards.filter(c=>c.token).length;
+   $('dbCount').textContent=`読み込み完了：${cards.length.toLocaleString()}枚（通常 ${cards.length-tokens} / トークン ${tokens}）`;
+   show('start');
+ }catch(err){show('loadError');console.error('カードデータの読み込みに失敗:',err)}
+}
+function loadLocalJson(event){
+ const file=event.target.files&&event.target.files[0];if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>loadJsonText(reader.result);
+ reader.readAsText(file,'UTF-8');
+}
+async function loadHostedJson(){
+ try{
+  const response=await fetch('./cards_ja.json',{cache:'no-store'});
+  if(!response.ok)throw new Error(`cards_ja.json の取得に失敗しました (${response.status})`);
+  loadJsonText(await response.text());
+ }catch(err){console.warn(err);show('loading')}
+}
+function startGame(skipInitialBousou=false){
+ candidates=[...cards];history=[];asked.clear();guessMode=false;guessIndex=0;
+ initialBousouActive=!skipInitialBousou;
+ if(initialBousouActive){showInitialBousouQuestion();return}
+ show('game');nextQuestion();
+}
+function restart(){startGame(true)}
+function showInitialBousouQuestion(){
+ initialBousouActive=true;guessMode=false;currentQuestion=null;
+ show('game');
+ $('qCategory').textContent='最初の質問';
+ $('question').textContent='《暴走》していますか？';
+ $('qNumber').textContent='質問 1';
+ $('remain').textContent=`候補 ${candidates.length.toLocaleString()}枚`;
+ $('candidateCount').textContent=candidates.length.toLocaleString();
+ $('bar').style.width='3%';
+ document.querySelector('.answer.unknown').classList.add('hidden');
+ renderCandidateList('gameCandidateList','gameCandidateSearch');
+}
+function showOruohnResult(){
+ initialBousouActive=false;guessMode=false;currentQuestion=null;
+ show('result');
+ const orouonCard=cards.find(c=>c.name==='猛る《戦車》・オルオーン');
+ $('resultTitle').textContent='猛る《戦車》・オルオーンですね';
+ const cardImage=orouonCard?.image||orouonCard?.evolved_image||'';
+ $('resultImage').onerror=()=>{$('resultImage').classList.add('hidden');};
+ if(cardImage){
+  $('resultImage').classList.remove('hidden');
+  $('resultImage').src=cardImage;
+ }else{
+  $('resultImage').classList.add('hidden');
+  $('resultImage').removeAttribute('src');
+ }
+ $('resultName').textContent='';
+ $('detailLink').classList.add('hidden');
+ $('resultDetails').innerHTML='';
+ $('resultText').textContent=cardImage?'':'カード画像がJSONに登録されていません。cards_ja.jsonにこのカードのimageまたはevolved_imageを追加してください。';
+ $('finalConfirm').classList.add('hidden');
+ $('resultUndo').classList.add('hidden');
+}
+function norm(s){return String(s||'').toLowerCase()}
+
+// 「場に出す」という表現だけでは判定しない。
+// 明示的にフォロワーを出す記述、または『カード名』から
+// cards データ上の種類を特定できる場合だけフォロワー召喚と判定する。
+function hasFollowerSummonEffect(card){
+ const text=[card.text||'',card.evolved?.text||''].join('\\n');
+ // 例：「フォロワー1枚を自分の場に出す」「自分の場にフォロワーを出す」
+ const explicitFollower=[
+  /フォロワー[^。\\n]{0,24}(?:自分の場に|場に)出す/,
+  /(?:自分の場に|場に)[^。\\n]{0,24}フォロワー[^。\\n]{0,12}出す/,
+  /フォロワー[^。\\n]{0,24}召喚する/,
+  /フォロワー[^。\\n]{0,24}場に出る/
+ ];
+ if(explicitFollower.some(re=>re.test(text))) return true;
+
+ // 例：「『ナイト』1枚を自分の場に出す」
+ // データベースに登録された同名カードの type を参照する。
+ const namedCards=[...text.matchAll(/『([^』]+)』/g)].map(m=>m[1]);
+ for(const name of namedCards){
+  if(!/(?:場に出す|召喚する|場に出る)/.test(text)) continue;
+  const matched=cards.filter(c=>c.name===name);
+  if(matched.some(c=>c.type==='Follower')) return true;
+ }
+ return false;
+}
+function featureList(){
+ const qs=[];
+ const add=(id,cat,text,fn)=>qs.push({id,cat,text,fn});
+ // クラス質問は8クラスから1〜4種類の組み合わせを作り、
+ // 候補カードを最もバランスよく分けられる質問を自動選択する。
+ const classEntries=Object.entries(CLASS_JA);
+ function addClassCombinations(start, chosen){
+  if(chosen.length>=1){
+   const keys=chosen.map(([k])=>k);
+   const labels=chosen.map(([,v])=>`「${v}」`);
+   const question=chosen.length===1
+    ? `このカードは${labels[0]}のカードですか？`
+    : `このカードは${labels.join('・')}のうちのいずれかのカードですか？`;
+   add('classset:'+keys.join('|'),'クラス',question,c=>keys.includes(c.class));
+  }
+  if(chosen.length===4)return;
+  for(let i=start;i<classEntries.length;i++)
+   addClassCombinations(i+1,[...chosen,classEntries[i]]);
+ }
+ addClassCombinations(0,[]);
+ Object.entries(TYPE_JA).forEach(([k,v])=>add('type:'+k,'カードの種類',`このカードは${v}ですか？`,c=>c.type===k));
+ Object.entries(RARITY_JA).forEach(([k,v])=>add('rarity:'+k,'レアリティ',`このカードのレアリティは${v}ですか？`,c=>c.rarity===k));
+ [0,1,2,3,4,5,6,7,8,9,10].forEach(n=>add('cost:'+n,'コスト',`このカードのコストは${n}ですか？`,c=>Number(c.cost)===n));
+ [0,1,2,3,4,5,6,7,8,9,10,11,12,13].forEach(n=>{
+   add('atk:'+n,'ステータス',`このカードの攻撃力は${n}ですか？`,c=>c.type==='Follower'&&Number(c.attack)===n);
+   add('def:'+n,'ステータス',`このカードの体力は${n}ですか？`,c=>c.type==='Follower'&&Number(c.defense)===n);
+ });
+ // 数値の範囲質問：各しきい値1〜10を自動選択候補に追加
+ for(let n=1;n<=10;n++){
+   add(`cost:min:${n}`,'コスト',`このカードはコストが${n}以上ですか？`,c=>c.cost!==null&&c.cost!==undefined&&c.cost!==''&&Number.isFinite(Number(c.cost))&&Number(c.cost)>=n);
+   add(`cost:max:${n}`,'コスト',`このカードはコストが${n}以下ですか？`,c=>c.cost!==null&&c.cost!==undefined&&c.cost!==''&&Number.isFinite(Number(c.cost))&&Number(c.cost)<=n);
+   add(`atk:min:${n}`,'ステータス',`このカードの攻撃力は${n}以上ですか？`,c=>c.type==='Follower'&&c.attack!==null&&c.attack!==undefined&&c.attack!==''&&Number.isFinite(Number(c.attack))&&Number(c.attack)>=n);
+   add(`atk:max:${n}`,'ステータス',`このカードの攻撃力は${n}以下ですか？`,c=>c.type==='Follower'&&c.attack!==null&&c.attack!==undefined&&c.attack!==''&&Number.isFinite(Number(c.attack))&&Number(c.attack)<=n);
+   add(`def:min:${n}`,'ステータス',`このカードの体力は${n}以上ですか？`,c=>c.type==='Follower'&&c.defense!==null&&c.defense!==undefined&&c.defense!==''&&Number.isFinite(Number(c.defense))&&Number(c.defense)>=n);
+   add(`def:max:${n}`,'ステータス',`このカードの体力は${n}以下ですか？`,c=>c.type==='Follower'&&c.defense!==null&&c.defense!==undefined&&c.defense!==''&&Number.isFinite(Number(c.defense))&&Number(c.defense)<=n);
+ }
+ add('token','カードの種類','このカードはトークンですか？',c=>!!c.token);
+ const keywordPatterns=[
+  ['ファンファーレ',/ファンファーレ/],['ラストワード',/ラストワード/],['守護',/守護/],['疾走',/疾走/],['突進',/突進/],['必殺',/必殺/],['ドレイン',/ドレイン/],['エンハンス',/エンハンス/],['カウントダウン',/カウントダウン/],['スペルブースト',/スペルブースト/],['ネクロマンス',/ネクロマンス/],['土の秘術',/土の秘術/],['潜伏',/潜伏/],['コンボ',/コンボ/],['リアニメイト',/リアニメイト/],['融合',/融合/],['交戦時',/交戦時/],['オーラ',/オーラ/],['バリア',/バリア/],['モード',/モード/],['連携',/連携/]
+ ];
+ keywordPatterns.forEach(([k,re])=>add('kw:'+k,'キーワード能力',`このカードは「${k}」に関係する能力を持っていますか？`,c=>re.test((c.text||'')+' '+(c.evolved?.text||''))));
+
+ const cardText=c=>String(c.text||'')+'\\n'+String(c.evolved?.text||'');
+ const hasExactEvolutionLabel=(c,label)=>cardText(c).includes(label);
+ // 奥義・解放奥義の記述を含む文を除いて、進化を契機とする効果を判定する
+ function hasNonUltimateEvolutionTrigger(c){
+  const sentences=cardText(c).split(/[\\n。！？]/);
+  return sentences.some(sentence=>
+   !/【(?:解放)?奥義(?:_[^】]+)?】/.test(sentence) &&
+   /【進化時】|【超進化時】|進化したとき|超進化したとき/.test(sentence)
+  );
+ }
+ const evolutionQuestions=[
+  ['evolve_trigger','進化時能力','このカードは進化時能力を持っていますか？',c=>hasExactEvolutionLabel(c,'【進化時】')],
+  ['super_evolve_trigger','超進化時能力','このカードは超進化時能力を持っていますか？',c=>hasExactEvolutionLabel(c,'【超進化時】')],
+  ['any_evolution_trigger','進化・超進化による発動効果','何らかのカードが進化または超進化することで発動する効果を持っていますか？（奥義・解放奥義を除く）',c=>hasNonUltimateEvolutionTrigger(c)],
+  ['evolved_state','進化状態','このカードは進化状態を条件・参照する能力を持っていますか？',c=>!!(c.evolution&&c.evolution.evolved_state)],
+  ['ep_sep_effect','EP・SEP','このカードはEPまたはSEPに関係する能力を持っていますか？',c=>!!(c.evolution&&c.evolution.ep_sep_effect)],
+  ['evolve_other_follower','進化させる能力','このカードは他のフォロワーを進化・超進化させる能力を持っていますか？',c=>!!(c.evolution&&c.evolution.evolve_other_follower)]
+ ];
+ evolutionQuestions.forEach(([key,label,question,fn])=>
+  add('evolution:'+key,'進化関連能力',question,fn)
+ );
+ // 相手のリーダー／フォロワーへのダメージだけを判定する。
+ // 「これにダメージ」「自分のリーダーにダメージ」などは誤って含めない。
+ function hasOpponentDamageEffect(c){
+  const text=String(c.text||'')+'\n'+String(c.evolved?.text||'');
+  const sentences=text.split(/[\n。！？/]/).map(s=>s.trim()).filter(Boolean);
+  return sentences.some(sentence=>{
+   if(!/ダメージ/.test(sentence)) return false;
+   // 相手を明示したフォロワー／リーダーへのダメージ
+   if(/相手の(?:場の)?フォロワー|相手のリーダー/.test(sentence)) return true;
+   // 「場のフォロワーすべて」「すべてのフォロワー」
+   if(/(?:場の)?フォロワー(?:すべて|全て)|(?:すべて|全て)のフォロワー/.test(sentence)) return true;
+   // 「リーダーすべて」「すべてのリーダー」
+   if(/リーダー(?:すべて|全て)|(?:すべて|全て)のリーダー/.test(sentence)) return true;
+   return false;
+  }) || /相手の(?:場の)?フォロワー[^。！？\n]*を選ぶ[。！？]\s*それに[^。！？\n]*ダメージ/.test(text);
+ }
+ const effects=[
+  ['damage','相手のフォロワーやリーダーにダメージを与える能力がありますか？',null],
+  ['draw','カードを引く能力がありますか？',/カードを引く|カードを.*引く/],
+  ['destroy','カードを破壊する能力がありますか？',/破壊する|破壊した|破壊され/],
+  ['summon','フォロワーを場に出す能力がありますか？',null],
+  ['heal','体力を回復する能力がありますか？',/体力を回復|リーダー.*回復/],
+  ['discard','手札を捨てる能力がありますか？',/手札を.*捨てる|捨てたとき/],
+  ['banish','カードを消滅させる能力がありますか？',/消滅させる|消滅する/],
+  ['transform','カードを変身させる能力がありますか？',/変身させる|変身する/],
+  ['leader','リーダーに直接ダメージを与える能力がありますか？',/リーダーに.*ダメージ|リーダー.*ダメージを与え/],
+  ['buff','攻撃力や体力を上げる能力がありますか？',/攻撃力.*上げ|体力.*上げ|攻撃力.*\+|体力.*\+/],
+  ['search','デッキからカードを手札に加える能力がありますか？',/デッキから.*手札に加える|デッキの.*手札に加える/]
+ ];
+ effects.forEach(([id,q,re])=>add('effect:'+id,'能力',q,
+   id==='summon' ? c=>hasFollowerSummonEffect(c) :
+   id==='damage' ? c=>hasOpponentDamageEffect(c) :
+   c=>re.test((c.text||'')+' '+(c.evolved?.text||''))
+  ));
+ return qs;
+}
+function nextQuestion(){
+ document.querySelector('.answer.unknown').classList.remove('hidden');
+ if(candidates.length<=0){showNoCandidates();return}
+ if(candidates.length===1){showFinalGuess(candidates[0]);return}
+ const all=featureList();let best=null,bestScore=-1;
+ // 数値系は「コスト」「攻撃力」「体力」それぞれ1ゲームにつき1回まで。
+ // 完全一致の質問と「○以上／○以下」の範囲質問を同じ系統として扱う。
+ const numericFamily=id=>id.startsWith('cost:')?'cost':id.startsWith('atk:')?'attack':id.startsWith('def:')?'defense':null;
+ // クラス質問は1ゲームにつき最大2回。
+ // 2回目を行う場合、1回目が複数クラス質問なら2回目は必ず単独クラス質問にする。
+ const askedClassIds=[...asked].filter(id=>id.startsWith('classset:'));
+ const classQuestionCount=askedClassIds.length;
+ const hasSingleClassQuestion=askedClassIds.some(id=>id.slice('classset:'.length).split('|').length===1);
+ for(const q of all){
+  const family=numericFamily(q.id);
+  if(asked.has(q.id)||(family&&[...asked].some(id=>numericFamily(id)===family)))continue;
+  if(q.id.startsWith('classset:')){
+   if(classQuestionCount>=2)continue;
+   const isSingleClass=q.id.slice('classset:'.length).split('|').length===1;
+   if(classQuestionCount===1&&!hasSingleClassQuestion&&!isSingleClass)continue;
+  }
+  let yes=0;for(const c of candidates)if(q.fn(c))yes++;
+  const no=candidates.length-yes;if(!yes||!no)continue;
+  const p=yes/candidates.length;
+  const entropy=-(p*Math.log2(p)+(1-p)*Math.log2(1-p));
+  const score=entropy;
+  if(score>bestScore){bestScore=score;best=q}
+ }
+ if(!best){guessMode=true;guessIndex=0;showCardCheck();return}
+ guessMode=false;
+ currentQuestion=best;asked.add(best.id);
+ $('question').textContent=best.text;$('qCategory').textContent=best.cat;
+ $('qNumber').textContent=`質問 ${history.length+1}`;
+ $('remain').textContent=`候補 ${candidates.length.toLocaleString()}枚`;
+ $('candidateCount').textContent=candidates.length.toLocaleString();
+ renderCandidateList('gameCandidateList','gameCandidateSearch');
+ $('bar').style.width=Math.min(96,history.length*7+3)+'%';
+}
+function answer(v){
+ if(initialBousouActive){
+  if(v==='unknown')return;
+  if(v==='yes'){history.push({type:'initial-bousou',before:[...candidates]});showOruohnResult();return}
+  history.push({type:'initial-bousou',before:[...candidates]});
+  candidates=candidates.filter(c=>c.name!=='猛る《戦車》・オルオーン');
+  initialBousouActive=false;
+  document.querySelector('.answer.unknown').classList.remove('hidden');
+  if(!candidates.length){showNoCandidates();return}
+  nextQuestion();
+  return;
+ }
+ if(guessMode){
+  if(v==='unknown')return;
+  const card=candidates[guessIndex];
+  if(!card)return;
+  if(v==='yes'){
+   history.push({type:'guess',beforeGuessIndex:guessIndex});
+   showCorrectGuess(card);
+   return;
+  }
+  history.push({type:'guess',beforeGuessIndex:guessIndex});
+  guessIndex++;
+  if(guessIndex>=candidates.length){showNoCandidates();return}
+  showCardCheck();
+  return;
+ }
+ if(!currentQuestion)return;
+ const before=candidates;
+ if(v!=='unknown')candidates=candidates.filter(c=>currentQuestion.fn(c)===(v==='yes'));
+ history.push({type:'question',q:currentQuestion,v,before});
+ if(!candidates.length){
+  candidates=before;alert('その回答だと候補が0枚になります。カード情報と回答を確認して、もう一度選んでください。');history.pop();return
+ }
+ nextQuestion();
+}
+function showCardCheck(){
+ if(!candidates.length){showNoCandidates();return}
+ if(candidates.length-guessIndex===1){
+  showFinalGuess(candidates[guessIndex]);
+  return;
+ }
+ guessMode=true;
+ const card=candidates[guessIndex];
+ if(!card){showNoCandidates();return}
+ currentQuestion=null;
+ show('game');
+ $('qCategory').textContent='候補カード確認';
+ $('question').textContent=`このカードは「${card.name}」ですか？`;
+ $('qNumber').textContent=`候補確認 ${guessIndex+1} / ${candidates.length}`;
+ $('remain').textContent=`残り候補 ${candidates.length-guessIndex}枚`;
+ $('candidateCount').textContent=String(candidates.length-guessIndex);
+ $('bar').style.width=Math.min(100,((guessIndex+1)/candidates.length)*100)+'%';
+ document.querySelector('.answer.unknown').classList.add('hidden');
+ renderCandidateList('gameCandidateList','gameCandidateSearch');
+}
+function showFinalGuess(card){
+ guessMode=false;
+ currentQuestion=null;
+ show('result');
+ $('resultTitle').textContent=`${card.name}ですね？`;
+ $('resultImage').onerror=()=>{$('resultImage').classList.add('hidden')};
+ $('resultImage').classList.toggle('hidden',!card.image);
+ if(card.image){$('resultImage').src=card.image}else{$('resultImage').removeAttribute('src')}
+ $('detailLink').href=card.detail_url||'#';
+ $('detailLink').classList.toggle('hidden',!card.detail_url);
+ $('resultName').textContent=card.name;
+ $('resultDetails').innerHTML='';
+ const items=[card.class||'クラス不明',TYPE_JA[card.type]||card.type,`コスト ${card.cost}`,RARITY_JA[card.rarity]||card.rarity,card.token?'トークン':null,(card.type==='Follower'||card.type==='フォロワー')?`攻 ${card.attack} / 体 ${card.defense}`:null,...(card.traits||[])].filter(Boolean);
+ items.forEach(x=>{const el=document.createElement('span');el.textContent=x;$('resultDetails').appendChild(el)});
+ $('resultText').textContent=[card.text,card.evolved?.text?`【進化後】\\n${card.evolved.text}`:''].filter(Boolean).join('\\n\\n')||'能力テキストなし';
+ $('finalConfirm').classList.remove('hidden');
+ $('resultUndo').classList.remove('hidden');
+}
+function confirmFinal(isCorrect){
+ const card=candidates[guessIndex];
+ if(!card)return;
+ history.push({type:'final',beforeGuessIndex:guessIndex});
+ if(isCorrect){
+  $('finalConfirm').classList.add('hidden');
+  showCorrectGuess(card);
+ }else{
+  showNoCandidates();
+ }
+}
+function showCorrectGuess(card){
+ guessMode=false;
+ show('result');
+ $('finalConfirm').classList.add('hidden');
+ $('resultTitle').textContent='正解！';
+ $('resultImage').onerror=()=>{$('resultImage').classList.add('hidden')};
+ $('resultImage').classList.toggle('hidden',!card.image);
+ if(card.image){$('resultImage').src=card.image}else{$('resultImage').removeAttribute('src')}
+ $('detailLink').href=card.detail_url||'#';
+ $('detailLink').classList.toggle('hidden',!card.detail_url);
+ $('resultName').textContent=card.name;
+ $('resultDetails').innerHTML='';
+ const items=[card.class||'クラス不明',TYPE_JA[card.type]||card.type,`コスト ${card.cost}`,RARITY_JA[card.rarity]||card.rarity,card.token?'トークン':null,(card.type==='Follower'||card.type==='フォロワー')?`攻 ${card.attack} / 体 ${card.defense}`:null,...(card.traits||[])].filter(Boolean);
+ items.forEach(x=>{const el=document.createElement('span');el.textContent=x;$('resultDetails').appendChild(el)});
+ $('resultText').textContent=[card.text,card.evolved?.text?`【進化後】\n${card.evolved.text}`:''].filter(Boolean).join('\n\n')||'能力テキストなし';
+}
+function showNoCandidates(){
+ guessMode=false;
+ show('result');
+ $('finalConfirm').classList.add('hidden');
+ $('resultTitle').textContent='候補をすべて確認しました';
+ $('resultImage').classList.add('hidden');
+ $('resultImage').removeAttribute('src');
+ $('resultName').textContent='';
+ $('detailLink').classList.add('hidden');
+ $('resultDetails').innerHTML='';
+ $('resultText').textContent='候補の中に思い浮かべたカードがありませんでした。最初からやり直すか、直前の回答を修正してください。';
+ $('resultUndo').classList.remove('hidden');
+}
+function undo(){
+ if(!history.length)return;
+ const h=history.pop();
+ if(h.type==='initial-bousou'){
+  candidates=h.before;
+  showInitialBousouQuestion();
+  return;
+ }
+ if(h.type==='guess'){
+  guessMode=true;
+  guessIndex=h.beforeGuessIndex;
+  showCardCheck();
+  return;
+ }
+ if(h.type==='final'){
+  guessIndex=h.beforeGuessIndex;
+  showFinalGuess(candidates[guessIndex]);
+  return;
+ }
+ candidates=h.before;
+ asked.delete(h.q.id);
+ guessMode=false;
+ show('game');
+ nextQuestion();
+}
+function renderCandidateList(listId='candidateList',searchId='candidateSearch'){
+ const list=$(listId);
+ if(!list)return;
+ const query=String($(searchId)?.value||'').trim().toLowerCase();
+ list.innerHTML='';
+ const matches=candidates.filter(card=>String(card.name||'').toLowerCase().includes(query));
+ const shown=matches.slice(0,100);
+ shown.forEach(card=>{
+  const d=document.createElement('div');d.className='candidate';
+  if(card.image){const im=document.createElement('img');im.src=card.image;im.alt='';d.append(im)}
+  const b=document.createElement('b');b.textContent=card.name;d.append(b);
+  list.appendChild(d);
+ });
+ const info=document.createElement('p');
+ info.style.gridColumn='1/-1';
+ info.style.color='var(--muted)';
+ info.textContent=query
+  ? `検索結果：${matches.length}枚${matches.length>100?'（先頭100枚を表示）':''}`
+  : `候補：${candidates.length}枚${candidates.length>100?'（先頭100枚を表示。カード名で検索できます）':''}`;
+ list.prepend(info);
+}
+show('loading');
+loadHostedJson();
+</script>
+</body>
+</html>
